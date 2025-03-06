@@ -1,0 +1,49 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <title>CS105.P21 - Lab 1 - 21522708</title>
+    <link href="style/main.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="heading">
+            <h1 class="title">CS105.P21 - Lab 1</h1>
+            <h3 class="author">UIT - 21522708</h3>
+        </div>
+        <p class="hint">ESC</p>
+
+        <!-- Options for algorithms -->
+        <label for="algorithm">Choose Algorithm:</label>
+            <select id="algorithm">
+                <option value="dda">DDA Algorithm</option>
+                <option value="bresenham">Bresenham Algorithm</option>
+                <!-- <option value="midpoint">Midpoint Circle Algorithm</option> -->
+                <!-- <option value="ellipse">Midpoint Ellipse Algorithm</option>s -->
+            </select>
+
+        <div class="main-container">
+            <canvas id="canvas">
+            </canvas>
+        </div>
+
+        <div class="buttons">
+            <button id="reset">
+                Reset
+            </button>
+        </div>
+
+        <script>
+            let script;
+            document.getElementById("algorithm").addEventListener("change", function() {
+                if (script) document.body.removeChild(script);
+                script = document.createElement("script");
+                script.src = "src/" + this.value + ".js";
+                document.body.appendChild(script);
+            });
+            document.getElementById("algorithm").dispatchEvent(new Event("change"));
+        </script>
+    </div>
+</body>
+</html>
