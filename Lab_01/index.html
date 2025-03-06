@@ -19,8 +19,8 @@
             <select id="algorithm">
                 <option value="dda">DDA Algorithm</option>
                 <option value="bresenham">Bresenham Algorithm</option>
-                <!-- <option value="midpoint">Midpoint Circle Algorithm</option> -->
-                <!-- <option value="ellipse">Midpoint Ellipse Algorithm</option>s -->
+                <option value="midpoint">Midpoint Circle Algorithm</option>
+                <option value="ellipse">Midpoint Ellipse Algorithm</option>s
             </select>
 
         <div class="main-container">
@@ -36,10 +36,45 @@
 
         <script>
             let script;
-            document.getElementById("algorithm").addEventListener("change", function() {
-                if (script) document.body.removeChild(script);
+            let currentAlgorithm = null;
+            let isCircleAlgorithm = false; // Track if the current algorithm needs mouseup
+
+            document.getElementById("algorithm").addEventListener("change", function () {
+                if (script) {
+                    document.body.removeChild(script); // Remove previous script
+                    script = null;
+                }
+
+                let algorithm = this.value;
+
+                // Remove previous event listeners
+                if (currentAlgorithm) {
+                    canvas.removeEventListener("mousedown", doMouseDown);
+                    canvas.removeEventListener("mousemove", doMouseMove);
+                    window.removeEventListener("keydown", doKeyDown);
+
+                    if (isCircleAlgorithm) {
+                        canvas.removeEventListener("mouseup", doMouseUp); // Only remove if used
+                    }
+                }
+
                 script = document.createElement("script");
-                script.src = "src/" + this.value + ".js";
+                script.src = "src/" + algorithm + ".js";
+                script.onload = function () {
+                    currentAlgorithm = algorithm;
+                    isCircleAlgorithm = (algorithm === "midpoint" || algorithm === "ellipse"); // Detect if mouseup is needed
+
+                    canvas.addEventListener("mousedown", doMouseDown, false);
+                    canvas.addEventListener("mousemove", doMouseMove, false);
+                    window.addEventListener("keydown", doKeyDown, false);
+
+                    if (isCircleAlgorithm) {
+                        canvas.addEventListener("mouseup", doMouseUp, false); // Add only if needed
+                    }
+
+                    painter.clear(); // Reset canvas
+                };
+
                 document.body.appendChild(script);
             });
             document.getElementById("algorithm").dispatchEvent(new Event("change"));

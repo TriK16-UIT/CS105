@@ -1,0 +1,141 @@
+// Initialize
+
+var canvas = document.getElementById("canvas");
+var context = canvas.getContext("2d");
+
+var width = 800;
+var height = 600;
+
+var bgRgba = [240, 240, 200, 255];
+var lineRgba = [0, 0, 0, 255];
+
+canvas.setAttribute("width", width);
+canvas.setAttribute("height", height);
+
+function Painter(context, width, height) {
+    this.context = context;
+    this.imageData = context.createImageData(width, height);
+    this.points = [];
+    this.width = width;
+    this.height = height;
+
+    this.getPixelIndex = function(x, y) {
+        if (x < 0 || y < 0 || x >= this.width || y >= this.height)
+            return -1;
+        return (x + y * width) << 2;
+    }
+
+    this.setPixel = function(x, y, rgba) {
+        pixelIndex = this.getPixelIndex(x, y);
+        if (pixelIndex == -1) return;
+        for (var i = 0; i < 4; i++) {
+            this.imageData.data[pixelIndex + i] = rgba[i];
+        }
+    }
+
+    this.drawBkg = function(rgba) {
+        for (var i = 0; i < this.width; i++)
+            for (var j = 0; j < this.height; j++)
+                this.setPixel(i, j, rgba);
+    }   
+
+    this.clear = function() {
+        this.drawBkg(bgRgba);
+        this.context.putImageData(this.imageData, 0, 0);
+    }
+
+    this.drawCircle = function(cx, cy, radius, rgba) {
+        var x = radius, y = 0;
+        var decision = 1 - x; // Initial decision parameter
+
+        while (x >= y) {
+            this.setPixel(cx + x, cy + y, rgba);
+            this.setPixel(cx - x, cy + y, rgba);
+            this.setPixel(cx + x, cy - y, rgba);
+            this.setPixel(cx - x, cy - y, rgba);
+            this.setPixel(cx + y, cy + x, rgba);
+            this.setPixel(cx - y, cy + x, rgba);
+            this.setPixel(cx + y, cy - x, rgba);
+            this.setPixel(cx - y, cy - x, rgba);
+
+            y++;
+            if (decision <= 0) {
+                decision += 2 * y + 1;
+            } else {
+                x--;
+                decision += 2 * (y - x) + 1;
+            }
+        }
+    }
+
+    this.draw = function() {
+        this.context.putImageData(this.imageData, 0, 0);
+    };
+
+    this.clear();
+    this.draw();
+}
+
+state = 0; // 0: waiting 1: drawing 2: finished
+clickPos = [-1, -1];
+var painter = new Painter(context, width, height);
+
+getPosOnCanvas = function(x, y) {
+    var bbox = canvas.getBoundingClientRect();
+    return [Math.floor(x - bbox.left * (canvas.width / bbox.width) + 0.5),
+            Math.floor(y - bbox.top * (canvas.height / bbox.height) + 0.5)];
+}
+
+doMouseMove = function(e) {
+    if (state == 0 || state == 2) {
+        return;
+    }
+    var p = getPosOnCanvas(e.clientX, e.clientY);
+    var dx = p[0] - clickPos[0];
+    var dy = p[1] - clickPos[1];
+    var radius = Math.sqrt(dx * dx + dy * dy);
+    painter.clear();
+    painter.drawCircle(clickPos[0], clickPos[1], Math.round(radius), pointRgba);
+    painter.draw();
+}
+
+doMouseDown = function(e) {
+    if (state == 2 || e.button != 0) {
+        return;
+    }
+    clickPos = getPosOnCanvas(e.clientX, e.clientY);
+    state = 1;
+}
+
+doMouseUp = function(e) {
+    if (state != 1) {
+        return;
+    }
+    state = 2;
+}
+
+doKeyDown = function(e) {
+    if (state == 2) {
+        return;
+    }
+    var keyId = e.keyCode ? e.keyCode : e.which;
+    if (keyId == 27 && state == 1) { // esc
+        state = 2;
+    }
+}
+
+doReset = function() {
+    if (state == 0) {
+        return;
+    }
+    state = 0;
+    painter.clear();
+}
+
+canvas.addEventListener("mousedown", doMouseDown, false);
+canvas.addEventListener("mousemove", doMouseMove, false);
+canvas.addEventListener("mouseup", doMouseUp, false);
+window.addEventListener("keydown", doKeyDown, false);
+
+var resetButton = document.getElementById("reset");
+resetButton.addEventListener("click", doReset, false);

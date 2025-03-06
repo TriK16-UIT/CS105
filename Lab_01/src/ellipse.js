@@ -1,3 +1,5 @@
+// Initialize
+
 var canvas = document.getElementById("canvas");
 var context = canvas.getContext("2d");
 
@@ -5,10 +7,7 @@ var width = 800;
 var height = 600;
 
 var bgRgba = [240, 240, 200, 255];
-var pointRgba = [0, 0, 255, 255];
 var lineRgba = [0, 0, 0, 255];
-var vlineRgba = [255, 0, 0, 255];
-var epsilon = 0.0001;
 
 canvas.setAttribute("width", width);
 canvas.setAttribute("height", height);
@@ -19,7 +18,7 @@ function Painter(context, width, height) {
     this.points = [];
     this.width = width;
     this.height = height;
-    
+
     this.getPixelIndex = function(x, y) {
         if (x < 0 || y < 0 || x >= this.width || y >= this.height)
             return -1;
@@ -34,33 +33,6 @@ function Painter(context, width, height) {
         }
     }
 
-    this.drawPoint = function(p, rgba){
-        var x = p[0];
-        var y = p[1];
-        for (var i = -1; i <= 1; i++)
-            for (var j = -1; j <= 1; j++)
-                this.setPixel(x + i, y + j, rgba);
-    }
-
-    this.drawLine = function(p0, p1, rgba) {
-        var x0 = p0[0], y0 = p0[1];
-        var x1 = p1[0], y1 = p1[1];
-        var dx = abs(x1 - x0), dy = abs(y1 - y0);
-        var sx = sign(x1 - x0), sy = sign(y1- y0);
-        var err = dx - dy;
-
-        while (true) {
-            this.setPixel(x0, y0, rgba);
-
-            if (dx + dy < epsilon) break;
-
-            var e2 = 2 * err;
-            if (e2 > -dy) { err -= dy; x0 += sx; }
-            if (e2 < dx) { err += dx; y0 += sy; }
-        }
-
-    }
-    
     this.drawBkg = function(rgba) {
         for (var i = 0; i < this.width; i++)
             for (var j = 0; j < this.height; j++)
@@ -68,33 +40,62 @@ function Painter(context, width, height) {
     }   
 
     this.clear = function() {
-        this.points.length = 0;
         this.drawBkg(bgRgba);
         this.context.putImageData(this.imageData, 0, 0);
     }
 
-    this.addPoint = function(p) {
-        this.points.push(p);
-    }
-
-    this.draw = function(p) {
-        var n = this.points.length;
-        this.drawBkg(bgRgba);
-        for (var i = 0; i < n; i++)
-            this.drawPoint(this.points[i], pointRgba);
-        for (var i = 0; i < n - 1; i++)
-            this.drawLine(this.points[i], this.points[i + 1], lineRgba);
-        if (n > 0 && (this.points[n - 1][0] != p[0] || this.points[n - 1][1] != p[1])) {
-            this.drawLine(this.points[n - 1], p, vlineRgba);
+    this.drawEllipse = function(cx, cy, rx, ry, rgba) {
+        var x = 0, y = ry;
+        var rx2 = rx * rx, ry2 = ry * ry;
+        var twoRx2 = 2 * rx2, twoRy2 = 2 * ry2;
+        var px = 0, py = twoRx2 * y;
+        
+        var p1 = ry2 - (rx2 * ry) + (0.25 * rx2);
+        while (px < py) {
+            this.setPixel(cx + x, cy + y, rgba);
+            this.setPixel(cx - x, cy + y, rgba);
+            this.setPixel(cx + x, cy - y, rgba);
+            this.setPixel(cx - x, cy - y, rgba);
+            x++;
+            px += twoRy2;
+            if (p1 < 0) {
+                p1 += ry2 + px;
+            } else {
+                y--;
+                py -= twoRx2;
+                p1 += ry2 + px - py;
+            }
         }
-        this.context.putImageData(this.imageData, 0, 0);
+        
+        var p2 = ry2 * (x + 0.5) * (x + 0.5) + rx2 * (y - 1) * (y - 1) - rx2 * ry2;
+        while (y >= 0) {
+            this.setPixel(cx + x, cy + y, rgba);
+            this.setPixel(cx - x, cy + y, rgba);
+            this.setPixel(cx + x, cy - y, rgba);
+            this.setPixel(cx - x, cy - y, rgba);
+            y--;
+            py -= twoRx2;
+            if (p2 > 0) {
+                p2 += rx2 - py;
+            } else {
+                x++;
+                px += twoRy2;
+                p2 += rx2 - py + px;
+            }
+        }
     }
+
+
+    this.draw = function() {
+        this.context.putImageData(this.imageData, 0, 0);
+    };
 
     this.clear();
     this.draw();
 }
 
-var state = 0; // 0: waiting 1: drawing 2: finished
+state = 0; // 0: waiting 1: drawing 2: finished
+clickPos = [-1, -1];
 var painter = new Painter(context, width, height);
 
 getPosOnCanvas = function(x, y) {
@@ -108,19 +109,26 @@ doMouseMove = function(e) {
         return;
     }
     var p = getPosOnCanvas(e.clientX, e.clientY);
-    painter.draw(p);
+    var rx = Math.abs(p[0] - clickPos[0]);
+    var ry = Math.abs(p[1] - clickPos[1]);
+    painter.clear();
+    painter.drawEllipse(clickPos[0], clickPos[1], rx, ry, pointRgba);
+    painter.draw();
 }
 
 doMouseDown = function(e) {
     if (state == 2 || e.button != 0) {
         return;
     }
-    var p = getPosOnCanvas(e.clientX, e.clientY);
-    painter.addPoint(p);
-    painter.draw(p);
-    if (state == 0) {
-        state = 1;
+    clickPos = getPosOnCanvas(e.clientX, e.clientY);
+    state = 1;
+}
+
+doMouseUp = function(e) {
+    if (state != 1) {
+        return;
     }
+    state = 2;
 }
 
 doKeyDown = function(e) {
@@ -130,7 +138,6 @@ doKeyDown = function(e) {
     var keyId = e.keyCode ? e.keyCode : e.which;
     if (keyId == 27 && state == 1) { // esc
         state = 2;
-        painter.draw(painter.points[painter.points.length - 1]); // clear red line
     }
 }
 
@@ -144,8 +151,8 @@ doReset = function() {
 
 canvas.addEventListener("mousedown", doMouseDown, false);
 canvas.addEventListener("mousemove", doMouseMove, false);
+canvas.addEventListener("mouseup", doMouseUp, false);
 window.addEventListener("keydown", doKeyDown, false);
 
 var resetButton = document.getElementById("reset");
 resetButton.addEventListener("click", doReset, false);
-
